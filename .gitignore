@@ -39,3 +39,8 @@ plans/
 .pi/hf-sessions/
 .pi/hf-sessions-backup/
 collect.sh
+
+# develop
+.qoder/
+AGENTS_CN.md
+README_CN.md
