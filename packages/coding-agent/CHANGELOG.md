@@ -10,6 +10,7 @@
 
 ### Fixed
 
+- Fixed `/reload` to persist project trust when an implicitly trusted session creates a project `.pi` directory.
 - Fixed the compaction summarization system prompt to use neutral AI assistant wording for non-coding agents ([#5401](https://github.com/earendil-works/pi/issues/5401)).
 - Fixed built-in tool expand hints to style closing parentheses consistently ([#5359](https://github.com/earendil-works/pi/issues/5359)).
 
