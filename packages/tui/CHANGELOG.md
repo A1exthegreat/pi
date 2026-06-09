@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed wrapping for mixed Latin and CJK text so unspaced CJK runs can break at grapheme boundaries without leaving large trailing gaps ([#5495](https://github.com/earendil-works/pi/issues/5495)).
+
 ## [0.78.1] - 2026-06-04
 
 ### Fixed
