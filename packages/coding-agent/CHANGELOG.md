@@ -4,14 +4,7 @@
 
 ### Added
 
-- Added `areExperimentalFeaturesEnabled` feature guard to allow users to opt-in to early features.
-- Added `ctx.isProjectTrusted()` for extensions to observe the effective project trust decision, including temporary trust decisions ([#5523](https://github.com/earendil-works/pi/issues/5523)).
-
-### Fixed
-
-- Fixed `/reload` to apply updated `steeringMode` and `followUpMode` settings to the current session ([#5377](https://github.com/earendil-works/pi/issues/5377)).
-- Fixed invalid `models.json` syntax to skip startup config migrations and report the normal file-path-aware models error instead of a raw JSON parse stack trace ([#5418](https://github.com/earendil-works/pi/issues/5418)).
-- Fixed GitHub release notes and interactive changelog links to resolve package-relative documentation URLs correctly ([#5516](https://github.com/earendil-works/pi/issues/5516)).
+- Added default-value expansion for prompt template positional arguments, e.g. `${1:-7}` ([#5507](https://github.com/earendil-works/pi/issues/5507)).
 
 ## [0.79.0] - 2026-06-08
 
