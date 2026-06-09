@@ -54,7 +54,7 @@ describe("AgentHarness", () => {
 	it("constructs directly and exposes queue modes", () => {
 		const session = new Session(new InMemorySessionStorage());
 		const env = new NodeExecutionEnv({ cwd: process.cwd() });
-		const initialModel = getModel("anthropic", "claude-sonnet-4-5");
+		const initialModel = getModel("anthropic", "claude-sonnet-4-5")!;
 		const harness = new AgentHarness({
 			env,
 			session,
@@ -96,7 +96,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session: new Session(new InMemorySessionStorage()),
-			model: registration.getModel(),
+			model: registration.getModel()!,
 			steeringMode: "one-at-a-time",
 		});
 		const steerQueueLengths: number[] = [];
@@ -132,7 +132,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session,
-			model: registration.getModel(),
+			model: registration.getModel()!,
 		});
 		harness.on("before_agent_start", () => ({
 			messages: [{ role: "user", content: [{ type: "text", text: "hook" }], timestamp: Date.now() }],
@@ -173,7 +173,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session: new Session(new InMemorySessionStorage()),
-			model: registration.getModel(),
+			model: registration.getModel()!,
 		});
 		const queueUpdates: Array<{ steer: number; followUp: number; nextTurn: number }> = [];
 		harness.subscribe((event) => {
@@ -226,7 +226,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session: new Session(new InMemorySessionStorage()),
-			model: registration.getModel(),
+			model: registration.getModel()!,
 			followUpMode: "one-at-a-time",
 		});
 		const followUpQueueLengths: number[] = [];
@@ -256,7 +256,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session,
-			model: registration.getModel(),
+			model: registration.getModel()!,
 		});
 		const events: string[] = [];
 		harness.subscribe((event) => {
@@ -287,7 +287,7 @@ describe("AgentHarness", () => {
 			],
 		});
 		registrations.push(registration);
-		const secondModel = registration.getModel("second");
+		const secondModel = registration.getModel("second")!;
 		if (!secondModel) throw new Error("missing second faux model");
 		const captured: Array<{ modelId: string; reasoning: unknown; systemPrompt: string; tools: string[] }> = [];
 		registration.setResponses([
@@ -315,7 +315,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness<Skill, PromptTemplate, AgentTool>({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session: new Session(new InMemorySessionStorage()),
-			model: registration.getModel(),
+			model: registration.getModel()!,
 			thinkingLevel: "off",
 			resources: {
 				skills: [{ name: "prompt", description: "prompt", content: "first prompt", filePath: "/skills/prompt" }],
@@ -352,7 +352,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session,
-			model: registration.getModel(),
+			model: registration.getModel()!,
 		});
 		let wrotePendingMessage = false;
 		harness.subscribe(async (event) => {
@@ -383,7 +383,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session: new Session(new InMemorySessionStorage()),
-			model: registration.getModel(),
+			model: registration.getModel()!,
 		});
 		let listenerFinished = false;
 		harness.subscribe(async (event) => {
@@ -420,7 +420,7 @@ describe("AgentHarness", () => {
 		const harness = new AgentHarness({
 			env: new NodeExecutionEnv({ cwd: process.cwd() }),
 			session,
-			model: registration.getModel(),
+			model: registration.getModel()!,
 			tools: [calculateTool],
 		});
 		const seenToolCalls: Array<{ id: string; name: string; expression: unknown }> = [];
@@ -457,7 +457,7 @@ describe("AgentHarness", () => {
 	it("preserves app tool types for getters and update events", async () => {
 		const session = new Session(new InMemorySessionStorage());
 		const env = new NodeExecutionEnv({ cwd: process.cwd() });
-		const model = getModel("anthropic", "claude-sonnet-4-5");
+		const model = getModel("anthropic", "claude-sonnet-4-5")!;
 		type AppTool = AgentTool<typeof calculateTool.parameters, undefined> & { source: "builtin" | "extension" };
 		const inspectTool: AppTool = { ...calculateTool, name: "inspect", source: "builtin" };
 		const searchTool: AppTool = { ...calculateTool, name: "search", source: "extension" };
@@ -528,7 +528,7 @@ describe("AgentHarness", () => {
 	it("validates constructor tool names", () => {
 		const session = new Session(new InMemorySessionStorage());
 		const env = new NodeExecutionEnv({ cwd: process.cwd() });
-		const model = getModel("anthropic", "claude-sonnet-4-5");
+		const model = getModel("anthropic", "claude-sonnet-4-5")!;
 		expect(
 			() => new AgentHarness({ env, session, model, tools: [calculateTool], activeToolNames: ["missing"] }),
 		).toThrow(/Unknown tool/);
@@ -557,7 +557,7 @@ describe("AgentHarness", () => {
 	it("preserves app resource types for getters and update events", async () => {
 		const session = new Session(new InMemorySessionStorage());
 		const env = new NodeExecutionEnv({ cwd: process.cwd() });
-		const model = getModel("anthropic", "claude-sonnet-4-5");
+		const model = getModel("anthropic", "claude-sonnet-4-5")!;
 		const harness = new AgentHarness<AppSkill, AppPromptTemplate, AgentTool>({ env, session, model });
 		const skill: AppSkill = {
 			name: "inspect",

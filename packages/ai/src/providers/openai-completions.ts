@@ -33,8 +33,6 @@ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
 import { headersToRecord } from "../utils/headers.ts";
 import { parseStreamingJson } from "../utils/json-parse.ts";
 import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
-import { isCloudflareProvider, resolveCloudflareBaseUrl } from "./cloudflare.ts";
-import { buildCopilotDynamicHeaders, hasCopilotVisionInput } from "./github-copilot-headers.ts";
 import { clampOpenAIPromptCacheKey } from "./openai-prompt-cache.ts";
 import { buildBaseOptions } from "./simple-options.ts";
 import { transformMessages } from "./transform-messages.ts";
@@ -447,6 +445,31 @@ export const streamSimpleOpenAICompletions: StreamFunction<"openai-completions",
 	} satisfies OpenAICompletionsOptions);
 };
 
+function copilotHasVisionInput(messages: Message[]): boolean {
+	return messages.some((msg) => {
+		if (msg.role === "user" && Array.isArray(msg.content)) {
+			return msg.content.some((c) => c.type === "image");
+		}
+		if (msg.role === "toolResult" && Array.isArray(msg.content)) {
+			return msg.content.some((c) => c.type === "image");
+		}
+		return false;
+	});
+}
+
+function buildCopilotHeaders(messages: Message[]): Record<string, string> {
+	const last = messages[messages.length - 1];
+	const initiator = last && last.role !== "user" ? "agent" : "user";
+	const headers: Record<string, string> = {
+		"X-Initiator": initiator,
+		"Openai-Intent": "conversation-edits",
+	};
+	if (copilotHasVisionInput(messages)) {
+		headers["Copilot-Vision-Request"] = "true";
+	}
+	return headers;
+}
+
 function createClient(
 	model: Model<"openai-completions">,
 	context: Context,
@@ -457,12 +480,7 @@ function createClient(
 ) {
 	const headers = { ...model.headers };
 	if (model.provider === "github-copilot") {
-		const hasImages = hasCopilotVisionInput(context.messages);
-		const copilotHeaders = buildCopilotDynamicHeaders({
-			messages: context.messages,
-			hasImages,
-		});
-		Object.assign(headers, copilotHeaders);
+		Object.assign(headers, buildCopilotHeaders(context.messages));
 	}
 
 	if (sessionId && compat.sendSessionAffinityHeaders) {
@@ -487,7 +505,7 @@ function createClient(
 
 	return new OpenAI({
 		apiKey,
-		baseURL: isCloudflareProvider(model.provider) ? resolveCloudflareBaseUrl(model) : model.baseUrl,
+		baseURL: model.baseUrl,
 		dangerouslyAllowBrowser: true,
 		defaultHeaders,
 	});

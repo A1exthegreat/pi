@@ -375,8 +375,8 @@ const authStorage = AuthStorage.create();
 const modelRegistry = ModelRegistry.create(authStorage);
 
 // Find specific built-in model (doesn't check if API key exists)
-const opus = getModel("anthropic", "claude-opus-4-5");
-if (!opus) throw new Error("Model not found");
+const deepseekModel = getModel("deepseek", "deepseek-chat");
+if (!deepseekModel) throw new Error("Model not found");
 
 // Find any model by provider/id, including custom models from models.json
 // (doesn't check if API key exists)
@@ -386,13 +386,12 @@ const customModel = modelRegistry.find("my-provider", "my-model");
 const available = await modelRegistry.getAvailable();
 
 const { session } = await createAgentSession({
-  model: opus,
+  model: deepseekModel,
   thinkingLevel: "medium", // off, minimal, low, medium, high, xhigh
-  
+
   // Models for cycling (Ctrl+P in interactive mode)
   scopedModels: [
-    { model: opus, thinkingLevel: "high" },
-    { model: haiku, thinkingLevel: "off" },
+    { model: deepseekModel, thinkingLevel: "high" },
   ],
   
   authStorage,
@@ -407,12 +406,12 @@ If no model is provided:
 
 > See [examples/sdk/02-custom-model.ts](../examples/sdk/02-custom-model.ts)
 
-### API Keys and OAuth
+### API Keys
 
 API key resolution priority (handled by AuthStorage):
 1. Runtime overrides (via `setRuntimeApiKey`, not persisted)
-2. Stored credentials in `auth.json` (API keys or OAuth tokens)
-3. Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.)
+2. Stored credentials in `auth.json`
+3. Environment variables (`DEEPSEEK_API_KEY`, `OPENCODE_API_KEY`, etc.)
 4. Fallback resolver (for custom provider keys from `models.json`)
 
 ```typescript
@@ -445,7 +444,7 @@ const { session } = await createAgentSession({
 const simpleRegistry = ModelRegistry.inMemory(authStorage);
 ```
 
-> See [examples/sdk/09-api-keys-and-oauth.ts](../examples/sdk/09-api-keys-and-oauth.ts)
+> See [examples/sdk/09-api-keys.ts](../examples/sdk/09-api-keys-and-oauth.ts)
 
 ### System Prompt
 
@@ -894,7 +893,7 @@ const authStorage = AuthStorage.create("/custom/agent/auth.json");
 
 // Runtime API key override (not persisted)
 if (process.env.MY_KEY) {
-  authStorage.setRuntimeApiKey("anthropic", process.env.MY_KEY);
+  authStorage.setRuntimeApiKey("deepseek", process.env.MY_KEY);
 }
 
 // Model registry (no custom models.json)
@@ -912,7 +911,7 @@ const statusTool = defineTool({
   }),
 });
 
-const model = getModel("anthropic", "claude-opus-4-5");
+const model = getModel("deepseek", "deepseek-chat");
 if (!model) throw new Error("Model not found");
 
 // In-memory settings with overrides

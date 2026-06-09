@@ -91,33 +91,6 @@ Override defaults when you need specific values:
 
 The file reloads each time you open `/model`. Edit during session; no restart needed.
 
-## Google AI Studio Example
-
-Use `google-generative-ai` with a `baseUrl` to add models from Google AI Studio, including custom Gemma 4 entries:
-
-```json
-{
-  "providers": {
-    "my-google": {
-      "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
-      "api": "google-generative-ai",
-      "apiKey": "$GEMINI_API_KEY",
-      "models": [
-        {
-          "id": "gemma-4-31b-it",
-          "name": "Gemma 4 31B",
-          "input": ["text", "image"],
-          "contextWindow": 262144,
-          "reasoning": true
-        }
-      ]
-    }
-  }
-}
-```
-
-The `baseUrl` is required when adding custom models to the `google-generative-ai` API type.
-
 ## Supported APIs
 
 | API | Description |
@@ -261,24 +234,24 @@ Route a built-in provider through a proxy without redefining models:
 ```json
 {
   "providers": {
-    "anthropic": {
+    "deepseek": {
       "baseUrl": "https://my-proxy.example.com/v1"
     }
   }
 }
 ```
 
-All built-in Anthropic models remain available. Existing OAuth or API key auth continues to work.
+All built-in DeepSeek models remain available. Existing API key auth continues to work.
 
 To merge custom models into a built-in provider, include the `models` array:
 
 ```json
 {
   "providers": {
-    "anthropic": {
+    "deepseek": {
       "baseUrl": "https://my-proxy.example.com/v1",
-      "apiKey": "$ANTHROPIC_API_KEY",
-      "api": "anthropic-messages",
+      "apiKey": "$DEEPSEEK_API_KEY",
+      "api": "openai-completions",
       "models": [...]
     }
   }
@@ -298,15 +271,11 @@ Use `modelOverrides` to customize specific built-in models without replacing the
 ```json
 {
   "providers": {
-    "openrouter": {
+    "deepseek": {
       "modelOverrides": {
-        "anthropic/claude-sonnet-4": {
-          "name": "Claude Sonnet 4 (Bedrock Route)",
-          "compat": {
-            "openRouterRouting": {
-              "only": ["amazon-bedrock"]
-            }
-          }
+        "deepseek-chat": {
+          "name": "DeepSeek Chat (Custom)",
+          "contextWindow": 131072
         }
       }
     }
@@ -404,90 +373,7 @@ For providers with partial OpenAI compatibility, use the `compat` field.
 | `cacheControlFormat` | Use Anthropic-style `cache_control` markers on the system prompt, last tool definition, and last user/assistant text content. Currently only `anthropic` is supported. |
 | `supportsStrictMode` | Include the `strict` field in tool definitions |
 | `supportsLongCacheRetention` | Whether the provider accepts long cache retention when cache retention is `long`: `prompt_cache_retention: "24h"` for OpenAI prompt caching, or `cache_control.ttl: "1h"` when `cacheControlFormat` is `anthropic`. Default: `true`. |
-| `openRouterRouting` | OpenRouter provider routing preferences. This object is sent as-is in the `provider` field of the [OpenRouter API request](https://openrouter.ai/docs/guides/routing/provider-selection). |
-| `vercelGatewayRouting` | Vercel AI Gateway routing config for provider selection (`only`, `order`) |
 
 `openrouter` uses `reasoning: { effort }`. `together` uses `reasoning: { enabled }` and also `reasoning_effort` when `supportsReasoningEffort` is enabled. `qwen` uses top-level `enable_thinking`. Use `qwen-chat-template` for local Qwen-compatible servers that require `chat_template_kwargs.enable_thinking`.
 
 `cacheControlFormat: "anthropic"` is for OpenAI-compatible providers that expose Anthropic-style prompt caching through `cache_control` markers on text content and tool definitions.
-
-Example:
-
-```json
-{
-  "providers": {
-    "openrouter": {
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKey": "$OPENROUTER_API_KEY",
-      "api": "openai-completions",
-      "models": [
-        {
-          "id": "openrouter/anthropic/claude-3.5-sonnet",
-          "name": "OpenRouter Claude 3.5 Sonnet",
-          "compat": {
-            "openRouterRouting": {
-              "allow_fallbacks": true,
-              "require_parameters": false,
-              "data_collection": "deny",
-              "zdr": true,
-              "enforce_distillable_text": false,
-              "order": ["anthropic", "amazon-bedrock", "google-vertex"],
-              "only": ["anthropic", "amazon-bedrock"],
-              "ignore": ["gmicloud", "friendli"],
-              "quantizations": ["fp16", "bf16"],
-              "sort": {
-                "by": "price",
-                "partition": "model"
-              },
-              "max_price": {
-                "prompt": 10,
-                "completion": 20
-              },
-              "preferred_min_throughput": {
-                "p50": 100,
-                "p90": 50
-              },
-              "preferred_max_latency": {
-                "p50": 1,
-                "p90": 3,
-                "p99": 5
-              }
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
-
-Vercel AI Gateway example:
-
-```json
-{
-  "providers": {
-    "vercel-ai-gateway": {
-      "baseUrl": "https://ai-gateway.vercel.sh/v1",
-      "apiKey": "$AI_GATEWAY_API_KEY",
-      "api": "openai-completions",
-      "models": [
-        {
-          "id": "moonshotai/kimi-k2.5",
-          "name": "Kimi K2.5 (Fireworks via Vercel)",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "cost": { "input": 0.6, "output": 3, "cacheRead": 0, "cacheWrite": 0 },
-          "contextWindow": 262144,
-          "maxTokens": 262144,
-          "compat": {
-            "vercelGatewayRouting": {
-              "only": ["fireworks", "novita"],
-              "order": ["fireworks", "novita"]
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```

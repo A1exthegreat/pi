@@ -369,14 +369,6 @@ export class AgentSession {
 			return { apiKey: result.apiKey, headers: result.headers };
 		}
 
-		const isOAuth = this._modelRegistry.isUsingOAuth(model);
-		if (isOAuth) {
-			throw new Error(
-				`Authentication failed for "${model.provider}". ` +
-					`Credentials may have expired or network is unavailable. ` +
-					`Run '/login ${model.provider}' to re-authenticate.`,
-			);
-		}
 		throw new Error(formatNoApiKeyFoundMessage(model.provider));
 	}
 
@@ -1052,14 +1044,6 @@ export class AgentSession {
 			}
 
 			if (!this._modelRegistry.hasConfiguredAuth(this.model)) {
-				const isOAuth = this._modelRegistry.isUsingOAuth(this.model);
-				if (isOAuth) {
-					throw new Error(
-						`Authentication failed for "${this.model.provider}". ` +
-							`Credentials may have expired or network is unavailable. ` +
-							`Run '/login ${this.model.provider}' to re-authenticate.`,
-					);
-				}
 				throw new Error(formatNoApiKeyFoundMessage(this.model.provider));
 			}
 

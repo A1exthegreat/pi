@@ -39,7 +39,7 @@ const session = new Session(new InMemorySessionStorage());
 const agent = new AgentHarness({
 	env,
 	session,
-	model: getModel("openai", "gpt-5.5"),
+	model: getModel("openai", "gpt-5.5")!,
 	thinkingLevel: "low",
 	systemPrompt: ({ env, resources }) =>
 		[
