@@ -248,6 +248,13 @@ function createPr(branch, title, body, isDraft, labels) {
     if (isDraft) args.push('--draft');
     for (const label of labels) args.push('--label', label);
     exec('gh', args);
+  } catch (err) {
+    // Retry without labels (ensureLabel may have failed due to GH token permissions)
+    logError(`PR creation with labels failed: ${err.message}`);
+    log('Retrying PR creation without labels...');
+    const args = ['pr', 'create', '--head', branch, '--title', title, '--body-file', tmpFile];
+    if (isDraft) args.push('--draft');
+    exec('gh', args);
   } finally {
     try { unlinkSync(tmpFile); } catch {}
   }
@@ -256,8 +263,9 @@ function createPr(branch, title, body, isDraft, labels) {
 function ensureLabel(name, description, color) {
   try {
     exec('gh', ['label', 'create', name, '--description', description, '--color', color, '--force']);
-  } catch {
-    logError(`Failed to ensure label "${name}", PR creation may fail if label does not exist`);
+  } catch (err) {
+    logError(`Failed to ensure label "${name}": ${err.message}`);
+    logError('Labels must be created manually via repo Settings > Labels. PRs will be created without labels.');
   }
 }
 
