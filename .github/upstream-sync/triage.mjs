@@ -10,7 +10,7 @@ const BASELINE_PATH = resolve(__dirname, 'processed-commits.txt');
 const MAX_DIFF_CHARS = 8000;
 const UPSTREAM_REMOTE = 'upstream';
 const UPSTREAM_BRANCH = 'main';
-const UPSTREAM_URL = 'https://github.com/badlogic/pi-mono';
+const UPSTREAM_URL = 'https://github.com/earendil-works/pi';
 
 const baseUrl = (process.env.OPENAI_BASE_URL).replace(/\/+$/, '');
 const apiKey = process.env.OPENAI_API_KEY;
