@@ -3,7 +3,7 @@ import { Agent, type AgentMessage, type ThinkingLevel } from "@earendil-works/pi
 import { clampThinkingLevel, type Message, type Model, streamSimple } from "@earendil-works/pi-ai";
 import { getAgentDir } from "../config.ts";
 import { resolvePath } from "../utils/paths.ts";
-import { AgentSession } from "./agent-session.ts";
+import { AgentSession, type VisionDiagnostics } from "./agent-session.ts";
 import { formatNoModelsAvailableMessage } from "./auth-guidance.ts";
 import { AuthStorage } from "./auth-storage.ts";
 import { DEFAULT_THINKING_LEVEL } from "./defaults.ts";
@@ -30,6 +30,7 @@ import {
 	type ToolName,
 	withFileMutationQueue,
 } from "./tools/index.ts";
+import { preprocessVision, VisionDescriptionCache } from "./vision-preprocessor.ts";
 
 export interface CreateAgentSessionOptions {
 	/** Working directory for project-local discovery. Default: process.cwd() */
@@ -289,6 +290,8 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	};
 
 	const extensionRunnerRef: { current?: ExtensionRunner } = {};
+	const visionCache = new VisionDescriptionCache();
+	const visionDiagnosticsRef: { current?: VisionDiagnostics } = {};
 
 	agent = new Agent({
 		initialState: {
@@ -299,6 +302,22 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		},
 		convertToLlm: convertToLlmWithBlockImages,
 		streamFn: async (model, context, options) => {
+			const visionResult = await preprocessVision(model, context, {
+				modelRegistry,
+				settingsManager,
+				cache: visionCache,
+				signal: options?.signal,
+			});
+			const processedContext = visionResult.context;
+			if (visionResult.descriptionsGenerated > 0 || visionResult.errors.length > 0) {
+				const visionSettings = settingsManager.getVisionModel();
+				visionDiagnosticsRef.current = {
+					imageCount: visionResult.descriptionsGenerated + visionResult.errors.length,
+					visionModel: visionSettings ? `${visionSettings.provider}/${visionSettings.modelId}` : "unknown",
+					descriptionsGenerated: visionResult.descriptionsGenerated,
+					errors: visionResult.errors,
+				};
+			}
 			const auth = await modelRegistry.getApiKeyAndHeaders(model);
 			if (!auth.ok) {
 				throw new Error(auth.error);
@@ -311,7 +330,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			const timeoutMs = options?.timeoutMs ?? providerRetrySettings.timeoutMs ?? effectiveTimeoutMs;
 			const websocketConnectTimeoutMs =
 				options?.websocketConnectTimeoutMs ?? settingsManager.getWebSocketConnectTimeoutMs();
-			return streamSimple(model, context, {
+			return streamSimple(model, processedContext, {
 				...options,
 				apiKey: auth.apiKey,
 				timeoutMs,
@@ -385,6 +404,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		allowedToolNames,
 		excludedToolNames,
 		extensionRunnerRef,
+		visionDiagnosticsRef,
 		sessionStartEvent: options.sessionStartEvent,
 	});
 	const extensionsResult = resourceLoader.getExtensions();

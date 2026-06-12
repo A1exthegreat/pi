@@ -145,7 +145,14 @@ export type AgentSessionEvent =
 			errorMessage?: string;
 	  }
 	| { type: "auto_retry_start"; attempt: number; maxAttempts: number; delayMs: number; errorMessage: string }
-	| { type: "auto_retry_end"; success: boolean; attempt: number; finalError?: string };
+	| { type: "auto_retry_end"; success: boolean; attempt: number; finalError?: string }
+	| {
+			type: "vision_model_call";
+			imageCount: number;
+			visionModel: string;
+			descriptionsGenerated: number;
+			errors: string[];
+	  };
 
 /** Listener function for agent session events */
 export type AgentSessionEventListener = (event: AgentSessionEvent) => void;
@@ -153,6 +160,13 @@ export type AgentSessionEventListener = (event: AgentSessionEvent) => void;
 // ============================================================================
 // Types
 // ============================================================================
+
+export interface VisionDiagnostics {
+	imageCount: number;
+	visionModel: string;
+	descriptionsGenerated: number;
+	errors: string[];
+}
 
 export interface AgentSessionConfig {
 	agent: Agent;
@@ -182,6 +196,8 @@ export interface AgentSessionConfig {
 	baseToolsOverride?: Record<string, AgentTool>;
 	/** Mutable ref used by Agent to access the current ExtensionRunner */
 	extensionRunnerRef?: { current?: ExtensionRunner };
+	/** Mutable ref for vision preprocessing diagnostics */
+	visionDiagnosticsRef?: { current?: VisionDiagnostics };
 	/** Session start event metadata emitted when extensions bind to this runtime. */
 	sessionStartEvent?: SessionStartEvent;
 }
@@ -296,6 +312,7 @@ export class AgentSession {
 	private _baseToolDefinitions: Map<string, ToolDefinition> = new Map();
 	private _cwd: string;
 	private _extensionRunnerRef?: { current?: ExtensionRunner };
+	private _visionDiagnosticsRef?: { current?: VisionDiagnostics };
 	private _initialActiveToolNames?: string[];
 	private _allowedToolNames?: Set<string>;
 	private _excludedToolNames?: Set<string>;
@@ -332,6 +349,7 @@ export class AgentSession {
 		this._cwd = config.cwd;
 		this._modelRegistry = config.modelRegistry;
 		this._extensionRunnerRef = config.extensionRunnerRef;
+		this._visionDiagnosticsRef = config.visionDiagnosticsRef;
 		this._initialActiveToolNames = config.initialActiveToolNames;
 		this._allowedToolNames = config.allowedToolNames ? new Set(config.allowedToolNames) : undefined;
 		this._excludedToolNames = config.excludedToolNames ? new Set(config.excludedToolNames) : undefined;
@@ -493,6 +511,22 @@ export class AgentSession {
 
 		// Notify all listeners
 		this._emit(event.type === "agent_end" ? { ...event, willRetry: this._willRetryAfterAgentEnd(event) } : event);
+
+		// Emit pending vision diagnostics after assistant message starts
+		if (event.type === "message_start" && event.message.role === "assistant") {
+			const ref = this._visionDiagnosticsRef;
+			const diag = ref?.current;
+			if (diag && ref) {
+				ref.current = undefined;
+				this._emit({
+					type: "vision_model_call",
+					imageCount: diag.imageCount,
+					visionModel: diag.visionModel,
+					descriptionsGenerated: diag.descriptionsGenerated,
+					errors: diag.errors,
+				});
+			}
+		}
 
 		// Handle session persistence
 		if (event.type === "message_end") {

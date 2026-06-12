@@ -20,7 +20,7 @@
 - Use only erasable TypeScript syntax (Node strip-only mode) in code checked by the root config (`packages/*/src`, `packages/*/test`, `packages/coding-agent/examples`): no parameter properties, `enum`, `namespace`/`module`, `import =`, `export =`, or other constructs needing JS emit. Use explicit fields with constructor assignments.
 - Always ask before removing functionality or code that appears intentional.
 - Do not preserve backward compatibility unless the user asks for it.
-- Never hardcode key checks (e.g. `matchesKey(keyData, "ctrl+x")`). Add defaults to `DEFAULT_EDITOR_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS` so they stay configurable.
+- Never hardcode key checks (e.g. `matchesKey(keyData, "ctrl+x")`). Add defaults to `TUI_KEYBINDINGS` or `KEYBINDINGS` so they stay configurable.
 - Never modify `packages/ai/src/models.generated.ts` directly; update `packages/ai/scripts/generate-models.ts` instead, then regenerate. Including the resulting `models.generated.ts` diff is always OK, even if regeneration includes unrelated upstream model metadata changes.
 
 ## Commands
@@ -65,8 +65,6 @@ If rebase conflicts occur:
 - Never force push.
 
 ## Issues and PRs
-
-See `CONTRIBUTING.md` for the contributor gate (auto-close workflows, `lgtm`/`lgtmi`, quality bar).
 
 When reviewing PRs:
 
@@ -114,8 +112,8 @@ Rules:
 
 Attribution:
 
-- Internal (from issues): `Fixed foo bar ([#123](https://github.com/earendil-works/pi-mono/issues/123))`
-- External contributions: `Added feature X ([#456](https://github.com/earendil-works/pi-mono/pull/456) by [@username](https://github.com/username))`
+- Internal (from issues): `Fixed foo bar ([#123](https://github.com/badlogic/pi-mono/issues/123))`
+- External contributions: `Added feature X ([#456](https://github.com/badlogic/pi-mono/pull/456) by [@username](https://github.com/username))`
 
 ## Releasing
 

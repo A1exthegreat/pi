@@ -57,6 +57,11 @@ export interface WarningSettings {
 	anthropicExtraUsage?: boolean; // default: true
 }
 
+export interface VisionModelSettings {
+	provider: string;
+	modelId: string;
+}
+
 export type TransportSetting = Transport;
 
 /**
@@ -101,6 +106,7 @@ export interface Settings {
 	enableSkillCommands?: boolean; // default: true - register skills as /skill:name commands
 	terminal?: TerminalSettings;
 	images?: ImageSettings;
+	visionModel?: VisionModelSettings;
 	enabledModels?: string[]; // Model patterns for cycling (same format as --models CLI flag)
 	doubleEscapeAction?: "fork" | "tree" | "none"; // Action for double-escape with empty editor (default: "tree")
 	treeFilterMode?: "default" | "no-tools" | "user-only" | "labeled-only" | "all"; // Default filter when opening /tree
@@ -1070,6 +1076,16 @@ export class SettingsManager {
 		}
 		this.globalSettings.images.blockImages = blocked;
 		this.markModified("images", "blockImages");
+		this.save();
+	}
+
+	getVisionModel(): VisionModelSettings | undefined {
+		return this.settings.visionModel;
+	}
+
+	setVisionModel(visionModel: VisionModelSettings | undefined): void {
+		this.globalSettings.visionModel = visionModel;
+		this.markModified("visionModel");
 		this.save();
 	}
 
