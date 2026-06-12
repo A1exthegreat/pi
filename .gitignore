@@ -45,3 +45,4 @@ collect.sh
 AGENTS_CN.md
 README_CN.md
 .understand-anything/
+scripts/deploy-windows.sh
