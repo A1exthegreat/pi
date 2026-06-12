@@ -244,29 +244,32 @@ function createPr(branch, title, body, isDraft, labels) {
   const tmpFile = `/tmp/upstream-triage-pr-${process.pid}-${Date.now()}.md`;
   writeFileSync(tmpFile, body);
   try {
-    const args = ['pr', 'create', '--head', branch, '--title', title, '--body-file', tmpFile];
-    if (isDraft) args.push('--draft');
-    for (const label of labels) args.push('--label', label);
-    exec('gh', args);
+    try {
+      const args = ['pr', 'create', '--head', branch, '--title', title, '--body-file', tmpFile];
+      if (isDraft) args.push('--draft');
+      for (const label of labels) args.push('--label', label);
+      exec('gh', args);
+    } catch (err) {
+      // Retry without labels (ensureLabel may have failed due to GH token permissions)
+      logError(`PR creation with labels failed: ${err.message}`);
+      log('Retrying PR creation without labels...');
+      const args = ['pr', 'create', '--head', branch, '--title', title, '--body-file', tmpFile];
+      if (isDraft) args.push('--draft');
+      exec('gh', args);
+    }
   } catch (err) {
-    // Retry without labels (ensureLabel may have failed due to GH token permissions)
-    logError(`PR creation with labels failed: ${err.message}`);
-    log('Retrying PR creation without labels...');
-    const args = ['pr', 'create', '--head', branch, '--title', title, '--body-file', tmpFile];
-    if (isDraft) args.push('--draft');
-    exec('gh', args);
+    logError(`PR creation failed: ${err.message}`);
+    logError(`  Branch "${branch}" has been pushed to origin. Create the PR manually:`);
+    logError(`  gh pr create --head ${branch} --title "${title}" --body "See PR description in the remote branch."`);
+    return false;
   } finally {
     try { unlinkSync(tmpFile); } catch {}
   }
+  return true;
 }
 
 function ensureLabel(name, description, color) {
-  try {
-    exec('gh', ['label', 'create', name, '--description', description, '--color', color, '--force']);
-  } catch (err) {
-    logError(`Failed to ensure label "${name}": ${err.message}`);
-    logError('Labels must be created manually via repo Settings > Labels. PRs will be created without labels.');
-  }
+  exec('gh', ['label', 'create', name, '--description', description, '--color', color, '--force']);
 }
 
 function bootstrap() {
@@ -313,8 +316,13 @@ async function main() {
 
   log(`Found ${commits.length} new commit(s) to process`);
 
-  ensureLabel('needs-review', 'Needs human review before merging', 'd73a4a');
-  ensureLabel('upstream-sync', 'Automated upstream sync PR', '0e8a16');
+  // Best-effort label creation; may fail if the token lacks permissions
+  try {
+    ensureLabel('needs-review', 'Needs human review before merging', 'd73a4a');
+  } catch {}
+  try {
+    ensureLabel('upstream-sync', 'Automated upstream sync PR', '0e8a16');
+  } catch {}
 
   const baselineUpdates = [];
 
@@ -370,23 +378,45 @@ async function main() {
     try {
       exec('git', ['push', '-u', 'origin', branch]);
     } catch (err) {
-      logError(`  Push failed: ${err.message}`);
-      exec('git', ['checkout', 'main']);
-      exec('git', ['branch', '-D', branch]);
-      continue;
+      const msg = err.message || '';
+      if (msg.includes('non-fast-forward')) {
+        log(`  Remote branch ${branch} already exists, force pushing...`);
+        try {
+          exec('git', ['push', '-f', '-u', 'origin', branch]);
+        } catch (err2) {
+          const msg2 = err2.message || '';
+          if (msg2.includes('without \'workflows\' permission') || msg2.includes('workflows')) {
+            logError(`  Cannot push branch ${branch}: commit modifies workflow files and the token lacks 'workflows' permission.`);
+          } else {
+            logError(`  Force push failed: ${msg2}`);
+          }
+          exec('git', ['checkout', 'main']);
+          exec('git', ['branch', '-D', branch]);
+          continue;
+        }
+      } else if (msg.includes('without \'workflows\' permission') || msg.includes('workflows')) {
+        logError(`  Cannot push branch ${branch}: commit modifies workflow files and the token lacks 'workflows' permission.`);
+        exec('git', ['checkout', 'main']);
+        exec('git', ['branch', '-D', branch]);
+        continue;
+      } else {
+        logError(`  Push failed: ${msg}`);
+        exec('git', ['checkout', 'main']);
+        exec('git', ['branch', '-D', branch]);
+        continue;
+      }
     }
 
     if (!prExists(branch)) {
-      const title = `${classification.prTitle} (upstream ${shortHash})`;
+      const prTitle = classification.prTitle || info.subject;
+      const title = `${prTitle} (upstream ${shortHash})`;
       const body = buildPrBody(info, classification, decision, result.conflicts);
       const isDraft = decision === 'manual';
       const labels = ['upstream-sync', ...(decision === 'manual' ? ['needs-review'] : [])];
 
-      try {
-        createPr(branch, title, body, isDraft, labels);
+      const created = createPr(branch, title, body, isDraft, labels);
+      if (created) {
         log(`  Created ${isDraft ? 'draft ' : ''}PR: ${title}`);
-      } catch (err) {
-        logError(`  PR creation failed: ${err.message}`);
       }
     } else {
       log(`  PR already exists for ${branch}`);
