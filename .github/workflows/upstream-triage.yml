@@ -36,9 +36,9 @@ jobs:
 
       - name: Run upstream triage
         env:
-          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          AI_MODEL: ${{ vars.AI_MODEL || 'gpt-4o-mini' }}
+          OPENAI_BASE_URL: ${{ secrets.USTC_BASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.USTC_API_KEY }}
+          AI_MODEL: ${{ 'deepseek-v4-flash-ascend' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .github/upstream-sync/triage.mjs
 

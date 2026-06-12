@@ -12,9 +12,9 @@ const UPSTREAM_REMOTE = 'upstream';
 const UPSTREAM_BRANCH = 'main';
 const UPSTREAM_URL = 'https://github.com/badlogic/pi-mono';
 
-const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
+const baseUrl = (process.env.OPENAI_BASE_URL).replace(/\/+$/, '');
 const apiKey = process.env.OPENAI_API_KEY;
-const model = process.env.AI_MODEL || 'gpt-4o-mini';
+const model = process.env.AI_MODEL;
 
 const isBootstrap = process.argv.includes('--bootstrap');
 
