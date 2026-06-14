@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import lockfile from "proper-lockfile";
 import { CONFIG_DIR_NAME } from "../config.ts";
 import { canonicalizePath, resolvePath } from "../utils/paths.ts";
@@ -104,7 +104,6 @@ export function hasProjectTrustInputs(cwd: string): boolean {
 		return true;
 	}
 
-	const root = resolve("/");
 	while (true) {
 		for (const filename of CONTEXT_FILE_NAMES) {
 			if (existsSync(join(currentDir, filename))) {
@@ -115,11 +114,7 @@ export function hasProjectTrustInputs(cwd: string): boolean {
 			return true;
 		}
 
-		if (currentDir === root) {
-			return false;
-		}
-
-		const parentDir = resolve(currentDir, "..");
+		const parentDir = dirname(currentDir);
 		if (parentDir === currentDir) {
 			return false;
 		}
