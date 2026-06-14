@@ -2,25 +2,6 @@ import { describe, expect, test } from "vitest";
 import { parseArgs } from "../src/cli/args.ts";
 
 describe("parseArgs", () => {
-	describe("--version flag", () => {
-		test("parses --version flag", () => {
-			const result = parseArgs(["--version"]);
-			expect(result.version).toBe(true);
-		});
-
-		test("parses -v shorthand", () => {
-			const result = parseArgs(["-v"]);
-			expect(result.version).toBe(true);
-		});
-
-		test("--version takes precedence over other args", () => {
-			const result = parseArgs(["--version", "--help", "some message"]);
-			expect(result.version).toBe(true);
-			expect(result.help).toBe(true);
-			expect(result.messages).toContain("some message");
-		});
-	});
-
 	describe("--help flag", () => {
 		test("parses --help flag", () => {
 			const result = parseArgs(["--help"]);
