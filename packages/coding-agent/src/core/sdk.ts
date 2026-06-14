@@ -337,13 +337,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				websocketConnectTimeoutMs,
 				maxRetries: options?.maxRetries ?? providerRetrySettings.maxRetries,
 				maxRetryDelayMs: options?.maxRetryDelayMs ?? providerRetrySettings.maxRetryDelayMs,
-				headers: mergeProviderAttributionHeaders(
-					model,
-					settingsManager,
-					options?.sessionId,
-					auth.headers,
-					options?.headers,
-				),
+				headers: mergeProviderAttributionHeaders(model, options?.sessionId, auth.headers, options?.headers),
 			});
 		},
 		onPayload: async (payload, _model) => {

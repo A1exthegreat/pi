@@ -16,10 +16,8 @@ This is a personal fork for local development. The following upstream content wa
 ### Removed Files (will conflict if upstream modifies them)
 
 - `CONTRIBUTING.md` — not needed for personal development
-- `README_CN.md` — upstream Chinese translation
-- `learning.md` — upstream architecture analysis
 - `SECURITY.md` — referenced earendil.com and pi.dev
-- `.pi/extensions/redraws.ts` and `.pi/extensions/tps.ts` — upstream dev extensions
+- `.pi/extensions/redraws.ts` — upstream dev extensions
 - `packages/coding-agent/src/modes/interactive/components/earendil-announcement.ts` — upstream brand component
 - `packages/coding-agent/src/modes/interactive/assets/clankolas.png` — component image asset
 

@@ -1,6 +1,4 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import type { SettingsManager } from "./settings-manager.ts";
-import { isInstallTelemetryEnabled } from "./telemetry.ts";
 
 const OPENROUTER_HOST = "openrouter.ai";
 const NVIDIA_NIM_HOST = "integrate.api.nvidia.com";
@@ -33,14 +31,7 @@ function isCloudflareModel(model: Model<Api>): boolean {
 	);
 }
 
-function getDefaultAttributionHeaders(
-	model: Model<Api>,
-	settingsManager: SettingsManager,
-): Record<string, string> | undefined {
-	if (!isInstallTelemetryEnabled(settingsManager)) {
-		return undefined;
-	}
-
+function getDefaultAttributionHeaders(model: Model<Api>): Record<string, string> | undefined {
 	if (isOpenRouterModel(model)) {
 		return {
 			"X-OpenRouter-Title": "pi",
@@ -77,13 +68,12 @@ function getSessionHeaders(model: Model<Api>, sessionId: string | undefined): Re
 
 export function mergeProviderAttributionHeaders(
 	model: Model<Api>,
-	settingsManager: SettingsManager,
 	sessionId: string | undefined,
 	...headerSources: Array<Record<string, string> | undefined>
 ): Record<string, string> | undefined {
 	const merged = {
 		...getSessionHeaders(model, sessionId),
-		...getDefaultAttributionHeaders(model, settingsManager),
+		...getDefaultAttributionHeaders(model),
 	};
 
 	for (const headers of headerSources) {
