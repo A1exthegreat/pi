@@ -444,7 +444,7 @@ const { session } = await createAgentSession({
 const simpleRegistry = ModelRegistry.inMemory(authStorage);
 ```
 
-> See [examples/sdk/09-api-keys.ts](../examples/sdk/09-api-keys-and-oauth.ts)
+> See [examples/sdk/09-api-keys-and-oauth.ts](../examples/sdk/09-api-keys-and-oauth.ts)
 
 ### System Prompt
 

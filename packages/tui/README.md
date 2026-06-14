@@ -17,6 +17,7 @@ Minimal terminal UI framework with differential rendering and synchronized outpu
 
 ```typescript
 import { TUI, Text, Editor, ProcessTerminal, matchesKey } from "@earendil-works/pi-tui";
+import type { EditorTheme } from "@earendil-works/pi-tui";
 
 // Create terminal
 const terminal = new ProcessTerminal();
@@ -27,7 +28,16 @@ const tui = new TUI(terminal);
 // Add components
 tui.addChild(new Text("Welcome to my app!"));
 
-import { defaultEditorTheme as editorTheme } from './test/test-themes.ts';
+const editorTheme: EditorTheme = {
+  borderColor: (s) => s,
+  selectList: {
+    selectedPrefix: (s) => s,
+    selectedText: (s) => s,
+    description: (s) => s,
+    scrollInfo: (s) => s,
+    noMatch: (s) => s,
+  },
+};
 const editor = new Editor(tui, editorTheme);
 editor.onSubmit = (text) => {
   console.log("Submitted:", text);
@@ -154,7 +164,8 @@ All components implement:
 interface Component {
   render(width: number): string[];
   handleInput?(data: string): void;
-  invalidate?(): void;
+  wantsKeyRelease?: boolean;
+  invalidate(): void;
 }
 ```
 
@@ -162,7 +173,8 @@ interface Component {
 |--------|-------------|
 | `render(width)` | Returns an array of strings, one per line. Each line **must not exceed `width`** or the TUI will error. Use `truncateToWidth()` or manual wrapping to ensure this. |
 | `handleInput?(data)` | Called when the component has focus and receives keyboard input. The `data` string contains raw terminal input (may include ANSI escape sequences). |
-| `invalidate?()` | Called to clear any cached render state. Components should re-render from scratch on the next `render()` call. |
+| `wantsKeyRelease?` | If true, component receives key release events (Kitty protocol). Default is false. |
+| `invalidate()` | Called to clear any cached render state. Components should re-render from scratch on the next `render()` call. |
 
 The TUI appends a full SGR reset and OSC 8 reset at the end of each rendered line. Styles do not carry across lines. If you emit multi-line text with styling, reapply styles per line or use `wrapTextWithAnsi()` so styles are preserved for each wrapped line.
 
@@ -304,6 +316,7 @@ interface EditorTheme {
 
 interface EditorOptions {
   paddingX?: number;  // Horizontal padding (default: 0)
+  autocompleteMaxVisible?: number;  // Max visible autocomplete items
 }
 
 const editor = new Editor(tui, theme, options?);  // tui is required for height-aware scrolling
@@ -358,6 +371,11 @@ interface MarkdownTheme {
   strikethrough: (text: string) => string;
   underline: (text: string) => string;
   highlightCode?: (code: string, lang?: string) => string[];
+  codeBlockIndent?: string;  // Prefix for code block lines (default: "  ")
+}
+
+interface MarkdownOptions {
+  preserveOrderedListMarkers?: boolean;
 }
 
 interface DefaultTextStyle {
@@ -374,7 +392,8 @@ const md = new Markdown(
   1,              // paddingX
   1,              // paddingY
   theme,          // MarkdownTheme
-  defaultStyle    // optional DefaultTextStyle
+  defaultStyle,   // optional DefaultTextStyle
+  options         // optional MarkdownOptions
 );
 md.setText("Updated markdown");
 ```
@@ -609,12 +628,16 @@ interface Terminal {
   write(data: string): void;
   get columns(): number;
   get rows(): number;
+  get kittyProtocolActive(): boolean;
   moveBy(lines: number): void;
   hideCursor(): void;
   showCursor(): void;
   clearLine(): void;
   clearFromCursor(): void;
   clearScreen(): void;
+  drainInput?(maxMs?: number, idleMs?: number): Promise<void>;
+  setTitle?(title: string): void;
+  setProgress?(active: boolean): void;
 }
 ```
 

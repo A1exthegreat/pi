@@ -1,20 +1,20 @@
 # Development
 
-See [AGENTS.md](https://github.com/earendil-works/pi-mono/blob/main/AGENTS.md) for additional guidelines.
+See [AGENTS.md](https://github.com/A1exthegreat/pi/blob/main/AGENTS.md) for additional guidelines.
 
 ## Setup
 
 ```bash
-git clone https://github.com/earendil-works/pi-mono
-cd pi-mono
-npm install
+git clone https://github.com/A1exthegreat/pi
+cd pi
+npm install --ignore-scripts
 npm run build
 ```
 
 Run from source:
 
 ```bash
-/path/to/pi-mono/pi-test.sh
+/path/to/pi/pi-test.sh
 ```
 
 The script can be run from any directory. Pi keeps the caller's current working directory.

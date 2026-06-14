@@ -97,14 +97,14 @@ function isTruthyEnvFlag(value: string | undefined): boolean {
 
 type AppMode = "interactive" | "print" | "json" | "rpc";
 
-function resolveAppMode(parsed: Args, stdinIsTTY: boolean): AppMode {
+function resolveAppMode(parsed: Args, stdinIsTTY: boolean, stdoutIsTTY: boolean): AppMode {
 	if (parsed.mode === "rpc") {
 		return "rpc";
 	}
 	if (parsed.mode === "json") {
 		return "json";
 	}
-	if (parsed.print || !stdinIsTTY) {
+	if (parsed.print || !stdinIsTTY || !stdoutIsTTY) {
 		return "print";
 	}
 	return "interactive";
