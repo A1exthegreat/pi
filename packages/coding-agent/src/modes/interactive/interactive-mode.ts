@@ -38,8 +38,8 @@ import {
 	visibleWidth,
 } from "@earendil-works/pi-tui";
 import chalk from "chalk";
-import { spawn, spawnSync } from "child_process";
-import { APP_NAME, APP_TITLE, getAgentDir, getAuthPath, getDebugLogPath, getShareViewerUrl } from "../../config.ts";
+import { spawn } from "child_process";
+import { APP_NAME, APP_TITLE, getAgentDir, getAuthPath, getDebugLogPath } from "../../config.ts";
 import { type AgentSession, type AgentSessionEvent, parseSkillBlock } from "../../core/agent-session.ts";
 import { type AgentSessionRuntime, SessionImportFileNotFoundError } from "../../core/agent-session-runtime.ts";
 import type {
@@ -72,10 +72,10 @@ import { parseGitUrl } from "../../utils/git.ts";
 import { getCwdRelativePath } from "../../utils/paths.ts";
 import { killTrackedDetachedChildren } from "../../utils/shell.ts";
 import { ensureTool } from "../../utils/tools-manager.ts";
+import { parsePlanSteps } from "../plan-mode.ts";
 import { ArminComponent } from "./components/armin.ts";
 import { AssistantMessageComponent } from "./components/assistant-message.ts";
 import { BashExecutionComponent } from "./components/bash-execution.ts";
-import { BorderedLoader } from "./components/bordered-loader.ts";
 import { BranchSummaryMessageComponent } from "./components/branch-summary-message.ts";
 import { CompactionSummaryMessageComponent } from "./components/compaction-summary-message.ts";
 import { CountdownTimer } from "./components/countdown-timer.ts";
@@ -2473,6 +2473,18 @@ export class InteractiveMode {
 				this.editor.setText("");
 				return;
 			}
+			if (text === "/plan" || text.startsWith("/plan ")) {
+				this.editor.setText("");
+				const task = text === "/plan" ? "" : text.slice(6).trim();
+				await this.handlePlanCommand(task);
+				return;
+			}
+			if (text === "/task" || text.startsWith("/task ")) {
+				this.editor.setText("");
+				const task = text === "/task" ? "" : text.slice(6).trim();
+				await this.handleTaskCommand(task);
+				return;
+			}
 			if (text === "/quit") {
 				this.editor.setText("");
 				await this.shutdown();
@@ -4679,8 +4691,10 @@ export class InteractiveMode {
 			if (outputPath?.endsWith(".jsonl")) {
 				const filePath = this.session.exportToJsonl(outputPath);
 				this.showStatus(`Session exported to: ${filePath}`);
+			} else if (outputPath) {
+				this.showError("HTML export is not available in this build. Use .jsonl format instead.");
 			} else {
-				const filePath = await this.session.exportToHtml(outputPath);
+				const filePath = this.session.exportToJsonl();
 				this.showStatus(`Session exported to: ${filePath}`);
 			}
 		} catch (error: unknown) {
@@ -4768,97 +4782,7 @@ export class InteractiveMode {
 	}
 
 	private async handleShareCommand(): Promise<void> {
-		// Check if gh is available and logged in
-		try {
-			const authResult = spawnSync("gh", ["auth", "status"], { encoding: "utf-8" });
-			if (authResult.status !== 0) {
-				this.showError("GitHub CLI is not logged in. Run 'gh auth login' first.");
-				return;
-			}
-		} catch {
-			this.showError("GitHub CLI (gh) is not installed. Install it from https://cli.github.com/");
-			return;
-		}
-
-		// Export to a temp file
-		const tmpFile = path.join(os.tmpdir(), "session.html");
-		try {
-			await this.session.exportToHtml(tmpFile);
-		} catch (error: unknown) {
-			this.showError(`Failed to export session: ${error instanceof Error ? error.message : "Unknown error"}`);
-			return;
-		}
-
-		// Show cancellable loader, replacing the editor
-		const loader = new BorderedLoader(this.ui, theme, "Creating gist...");
-		this.editorContainer.clear();
-		this.editorContainer.addChild(loader);
-		this.ui.setFocus(loader);
-		this.ui.requestRender();
-
-		const restoreEditor = () => {
-			loader.dispose();
-			this.editorContainer.clear();
-			this.editorContainer.addChild(this.editor);
-			this.ui.setFocus(this.editor);
-			try {
-				fs.unlinkSync(tmpFile);
-			} catch {
-				// Ignore cleanup errors
-			}
-		};
-
-		// Create a secret gist asynchronously
-		let proc: ReturnType<typeof spawn> | null = null;
-
-		loader.onAbort = () => {
-			proc?.kill();
-			restoreEditor();
-			this.showStatus("Share cancelled");
-		};
-
-		try {
-			const result = await new Promise<{ stdout: string; stderr: string; code: number | null }>((resolve) => {
-				proc = spawn("gh", ["gist", "create", "--public=false", tmpFile]);
-				let stdout = "";
-				let stderr = "";
-				proc.stdout?.on("data", (data) => {
-					stdout += data.toString();
-				});
-				proc.stderr?.on("data", (data) => {
-					stderr += data.toString();
-				});
-				proc.on("close", (code) => resolve({ stdout, stderr, code }));
-			});
-
-			if (loader.signal.aborted) return;
-
-			restoreEditor();
-
-			if (result.code !== 0) {
-				const errorMsg = result.stderr?.trim() || "Unknown error";
-				this.showError(`Failed to create gist: ${errorMsg}`);
-				return;
-			}
-
-			// Extract gist ID from the URL returned by gh
-			// gh returns something like: https://gist.github.com/username/GIST_ID
-			const gistUrl = result.stdout?.trim();
-			const gistId = gistUrl?.split("/").pop();
-			if (!gistId) {
-				this.showError("Failed to parse gist ID from gh output");
-				return;
-			}
-
-			// Create the preview URL
-			const previewUrl = getShareViewerUrl(gistId);
-			this.showStatus(`Share URL: ${previewUrl}\nGist: ${gistUrl}`);
-		} catch (error: unknown) {
-			if (!loader.signal.aborted) {
-				restoreEditor();
-				this.showError(`Failed to create gist: ${error instanceof Error ? error.message : "Unknown error"}`);
-			}
-		}
+		this.showError("/share is not available in this build.");
 	}
 
 	private async handleCopyCommand(): Promise<void> {
@@ -5261,5 +5185,149 @@ export class InteractiveMode {
 			this.ui.stop();
 			this.isInitialized = false;
 		}
+	}
+
+	private async handlePlanCommand(task: string): Promise<void> {
+		if (!task) {
+			this.showWarning("Usage: /plan <task description> - e.g., /plan refactor the agent module");
+			return;
+		}
+
+		if (this.loadingAnimation) {
+			this.loadingAnimation.stop();
+			this.loadingAnimation = undefined;
+		}
+		this.statusContainer.clear();
+
+		const planPrompt = `You are now in PLAN mode. Your task is:
+${task}
+
+First, create a clear step-by-step plan. Then wait for confirmation before executing.
+
+When you finish creating the plan, tell the user how many steps there are and ask them if they want to proceed.
+
+Important: Use the git tool to commit after each step.`;
+
+		this.editor.addToHistory?.(`/plan ${task}`);
+		await this.session.prompt(planPrompt);
+	}
+
+	private async handleTaskCommand(task: string): Promise<void> {
+		if (!task) {
+			this.showWarning("Usage: /task <task description> - e.g., /task refactor the agent module");
+			return;
+		}
+
+		if (this.loadingAnimation) {
+			this.loadingAnimation.stop();
+			this.loadingAnimation = undefined;
+		}
+		this.statusContainer.clear();
+
+		this.editor.addToHistory?.(`/task ${task}`);
+
+		// Phase 1: Generate plan
+		const taskPlanPrompt = `You are now in TASK mode. Your task is:
+${task}
+
+First, create a clear step-by-step plan. Do NOT ask for confirmation. The plan will be executed automatically.
+
+Format your response as follows (use plain text, no markdown code fences):
+
+## Plan
+
+1. **Step 1 title** - Description of what to do
+2. **Step 2 title** - Description of what to do
+...
+
+## Risks
+- Risk 1
+- Risk 2
+`;
+
+		await this.session.prompt(taskPlanPrompt);
+		await this.session.agent.waitForIdle();
+
+		const planResponse = this.getLastAssistantText();
+		const steps = parsePlanSteps(planResponse);
+
+		if (steps.length === 0) {
+			this.showWarning("Could not parse plan steps from the response. Try rephrasing your task.");
+			return;
+		}
+
+		this.showWarning(`Plan generated with ${steps.length} steps. Executing...`);
+
+		// Phase 2: Execute each step
+		const checkCommand = "npm run check";
+		const maxRetries = 2;
+
+		for (let i = 0; i < steps.length; i++) {
+			const step = steps[i];
+			const stepNum = i + 1;
+
+			this.showWarning(`Step ${stepNum}/${steps.length}: ${step}`);
+
+			let success = false;
+			let lastError = "";
+
+			for (let attempt = 0; attempt <= maxRetries; attempt++) {
+				if (attempt > 0) {
+					this.showWarning(`Retry attempt ${attempt}/${maxRetries} for step ${stepNum}...`);
+				}
+
+				const stepPrompt =
+					attempt === 0
+						? `Step ${stepNum}/${steps.length}: ${step}\n\nExecute this step. After making changes, run \`${checkCommand}\`. If it passes, stage all changes and commit with a descriptive message. If it fails, fix the issues and try again.`
+						: `Step ${stepNum}/${steps.length}: ${step}\n\nThe previous attempt failed: ${lastError}\n\nFix the issue and try again. After making changes, run \`${checkCommand}\`. If it passes, stage all changes and commit. If it fails again, fix the issues and try again.`;
+
+				await this.session.prompt(stepPrompt);
+				await this.session.agent.waitForIdle();
+
+				// Check if step resulted in error
+				const lastMsg = this.session.state.messages[this.session.state.messages.length - 1];
+				if (lastMsg?.role === "assistant") {
+					const assistantMsg = lastMsg as any;
+					if (assistantMsg.stopReason === "error" || assistantMsg.stopReason === "aborted") {
+						lastError = assistantMsg.errorMessage || "Unknown error";
+						this.showWarning(`Attempt ${attempt + 1} failed: ${lastError}`);
+						continue;
+					}
+				}
+
+				success = true;
+				break;
+			}
+
+			if (!success) {
+				this.showWarning(`Step ${stepNum} failed after ${maxRetries + 1} attempts. Continuing with next step.`);
+			}
+
+			this.showWarning(`Step ${stepNum} complete.`);
+		}
+
+		// Phase 3: Summary
+		const summaryPrompt = `All steps have been executed. Please provide a brief summary of what was accomplished.`;
+		await this.session.prompt(summaryPrompt);
+		await this.session.agent.waitForIdle();
+
+		this.showWarning("Task complete!");
+	}
+
+	private getLastAssistantText(): string {
+		const state = this.session.state;
+		for (let i = state.messages.length - 1; i >= 0; i--) {
+			const msg = state.messages[i];
+			if (msg.role === "assistant") {
+				return msg.content
+					.filter(
+						(c): c is { type: "text"; text: string } =>
+							c.type === "text" && Boolean((c as { text?: string }).text),
+					)
+					.map((c) => c.text)
+					.join("\n");
+			}
+		}
+		return "";
 	}
 }

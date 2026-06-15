@@ -9,7 +9,7 @@ import { createInterface } from "node:readline";
 import { type ImageContent, modelsAreEqual } from "@earendil-works/pi-ai";
 import { ProcessTerminal, setKeybindings, TUI } from "@earendil-works/pi-tui";
 import chalk from "chalk";
-import { type Args, type Mode, parseArgs, printHelp } from "./cli/args.ts";
+import { type Args, parseArgs, printHelp } from "./cli/args.ts";
 import { processFileArguments } from "./cli/file-processor.ts";
 import { buildInitialMessage } from "./cli/initial-message.ts";
 import { listModels } from "./cli/list-models.ts";
@@ -23,7 +23,6 @@ import {
 } from "./core/agent-session-services.ts";
 import { formatNoModelsAvailableMessage } from "./core/auth-guidance.ts";
 import { AuthStorage } from "./core/auth-storage.ts";
-import { exportFromFile } from "./core/export-html/index.ts";
 import type { ExtensionFactory } from "./core/extensions/types.ts";
 import { configureHttpDispatcher } from "./core/http-dispatcher.ts";
 import { KeybindingsManager } from "./core/keybindings.ts";
@@ -42,7 +41,7 @@ import { SettingsManager } from "./core/settings-manager.ts";
 import { printTimings, resetTimings, time } from "./core/timings.ts";
 import { hasProjectTrustInputs, ProjectTrustStore } from "./core/trust-manager.ts";
 import { runMigrations, showDeprecationWarnings } from "./migrations.ts";
-import { InteractiveMode, runPrintMode, runRpcMode } from "./modes/index.ts";
+import { InteractiveMode, runPlanMode, runPrintMode, runRpcMode, runTaskMode } from "./modes/index.ts";
 import { ExtensionSelectorComponent } from "./modes/interactive/components/extension-selector.ts";
 import { initTheme, stopThemeWatcher } from "./modes/interactive/theme/theme.ts";
 import { handleConfigCommand, handlePackageCommand } from "./package-manager-cli.ts";
@@ -95,9 +94,15 @@ function isTruthyEnvFlag(value: string | undefined): boolean {
 	return value === "1" || value.toLowerCase() === "true" || value.toLowerCase() === "yes";
 }
 
-type AppMode = "interactive" | "print" | "json" | "rpc";
+type AppMode = "interactive" | "print" | "json" | "rpc" | "plan" | "task";
 
 function resolveAppMode(parsed: Args, stdinIsTTY: boolean, stdoutIsTTY: boolean): AppMode {
+	if (parsed.mode === "plan") {
+		return "plan";
+	}
+	if (parsed.mode === "task") {
+		return "task";
+	}
 	if (parsed.mode === "rpc") {
 		return "rpc";
 	}
@@ -110,7 +115,7 @@ function resolveAppMode(parsed: Args, stdinIsTTY: boolean, stdoutIsTTY: boolean)
 	return "interactive";
 }
 
-function toPrintOutputMode(appMode: AppMode): Exclude<Mode, "rpc"> {
+function toPrintOutputMode(appMode: AppMode): "json" | "text" {
 	return appMode === "json" ? "json" : "text";
 }
 
@@ -576,20 +581,6 @@ export async function main(args: string[], options?: MainOptions) {
 	}
 	time("parseArgs");
 
-	if (parsed.export) {
-		let result: string;
-		try {
-			const outputPath = parsed.messages.length > 0 ? parsed.messages[0] : undefined;
-			result = await exportFromFile(parsed.export, outputPath);
-		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to export session";
-			console.error(chalk.red(`Error: ${message}`));
-			process.exit(1);
-		}
-		console.log(`Exported to: ${result}`);
-		process.exit(0);
-	}
-
 	let appMode = resolveAppMode(parsed, process.stdin.isTTY, process.stdout.isTTY);
 	const shouldTakeOverStdout = appMode !== "interactive" && !isPlainRuntimeMetadataCommand(parsed);
 	if (shouldTakeOverStdout) {
@@ -827,6 +818,39 @@ export async function main(args: string[], options?: MainOptions) {
 	if (appMode === "rpc") {
 		printTimings();
 		await runRpcMode(runtime);
+	} else if (appMode === "task") {
+		const task = initialMessage || parsed.messages.join(" ") || "";
+		if (!task) {
+			console.error('Task mode requires a task. Use: pi -p "your task description" --mode task');
+			process.exit(1);
+		}
+		printTimings();
+		const exitCode = await runTaskMode(runtime, {
+			task,
+			initialImages,
+			messages: task ? [] : parsed.messages,
+			checkCommand: parsed.continue ? "npm run check" : undefined,
+			maxRetries: 2,
+		});
+		stopThemeWatcher();
+		restoreStdout();
+		process.exit(exitCode);
+	} else if (appMode === "plan") {
+		const task = initialMessage || parsed.messages.join(" ") || "";
+		if (!task) {
+			console.error('Plan mode requires a task. Use: pi -p "your task description" --mode plan');
+			process.exit(1);
+		}
+		printTimings();
+		const exitCode = await runPlanMode(runtime, {
+			task,
+			initialImages,
+			messages: task ? [] : parsed.messages,
+			yes: parsed.continue ?? false,
+		});
+		stopThemeWatcher();
+		restoreStdout();
+		process.exit(exitCode);
 	} else if (appMode === "interactive") {
 		const interactiveMode = new InteractiveMode(runtime, {
 			migratedProviders,

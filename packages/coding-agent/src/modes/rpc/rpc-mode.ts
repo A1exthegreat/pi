@@ -568,10 +568,8 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 				return success(id, "get_session_stats", stats);
 			}
 
-			case "export_html": {
-				const path = await session.exportToHtml(command.outputPath);
-				return success(id, "export_html", { path });
-			}
+			case "export_html":
+				return error(id, "export_html", "HTML export is not available in this build.");
 
 			case "switch_session": {
 				const result = await runtimeHost.switchSession(command.sessionPath);

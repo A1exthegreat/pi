@@ -122,11 +122,6 @@ describe("parseArgs", () => {
 			expect(result.messages).toEqual([]);
 		});
 
-		test("parses --export", () => {
-			const result = parseArgs(["--export", "session.jsonl"]);
-			expect(result.export).toBe("session.jsonl");
-		});
-
 		test("parses --thinking", () => {
 			const result = parseArgs(["--thinking", "high"]);
 			expect(result.thinking).toBe("high");
